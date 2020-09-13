@@ -1,0 +1,194 @@
+// Core variables and mixins
+@import "variables";
+@import "~bootstrap/mixins";
+
+// Reset and dependencies
+@import "~bootstrap/normalize";
+@import "~bootstrap/glyphicons";
+
+// Core CSS
+@import "~bootstrap/scaffolding";
+@import "~bootstrap/type";
+@import "~bootstrap/code";
+@import "~bootstrap/grid";
+@import "~bootstrap/tables";
+@import "~bootstrap/forms";
+@import "~bootstrap/buttons";
+
+// Components
+@import "~bootstrap/component-animations";
+@import "~bootstrap/dropdowns";
+@import "~bootstrap/button-groups";
+@import "~bootstrap/input-groups";
+@import "~bootstrap/navs";
+@import "~bootstrap/navbar";
+@import "~bootstrap/breadcrumbs";
+@import "~bootstrap/pagination";
+@import "~bootstrap/pager";
+@import "~bootstrap/labels";
+@import "~bootstrap/badges";
+@import "~bootstrap/thumbnails";
+@import "~bootstrap/alerts";
+@import "~bootstrap/close";
+
+// Components w/ JavaScript
+@import "~bootstrap/modals";
+@import "~bootstrap/popovers";
+@import "~bootstrap/carousel";
+
+// Utility classes
+@import "~bootstrap/utilities";
+@import "~bootstrap/responsive-utilities";
+
+.no-gutter {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    -webkit-overflow-scrolling: auto !important; // disable ios safari inertia scrolling
+}
+body {
+    position: relative;
+}
+
+.no-gutter > [class*="col-"] {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.main-container {
+    position: absolute;
+    bottom: 50px;
+    right: 0;
+    left: 0;
+    top: 0;
+    padding: 0;
+    -webkit-overflow-scrolling: auto;
+
+    > .row {
+        height: 100%;
+
+        @media (min-width: 992px) {
+            .side-panels {
+                height: 100%;
+            }
+            .service-list {
+                height: 25%;
+            }
+            
+            .live-list {
+                height: 75%;
+            }
+        }
+        
+    }
+
+    .service-list .list {
+    }
+    .service-list, .live-list {
+        $header-margin: 2rem;
+        position: relative;
+        padding-top: $header-margin;
+        border-left: 1px solid $gray-darker; 
+
+        > .label {
+            color: $gray-light;
+            position: relative;
+            left: 0;
+            padding-left: 0.25rem;
+            top: -$header-margin;
+        }
+
+        > .list {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: $header-margin;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+
+    .live-list {
+        border-top: 1px solid $gray;
+    }
+}
+
+.main-view {
+    width: 100%;
+    height: 0;
+    position: relative;
+
+    &__container {
+        background: #000;
+        @media (min-width: 992px) {
+            height: 100%;
+        }
+    }
+    
+    &__iframe {
+        border: none;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+    }
+    &.is-4-3 {
+        padding-bottom: 75%;
+    }
+    &.is-5-4 {
+        padding-bottom: 80%;
+    }
+    &.is-16-9 {
+        padding-bottom: 56.25%;
+    }
+    &.is-16-10 {
+        padding-bottom: 62.50%;
+    }
+}
+
+.list {
+    &-item {
+        display: block;
+        padding: 1.25rem 1.75rem;
+        border-bottom: 1px solid $gray-darker;
+        color: $text-color;
+    }
+}
+
+.status {
+    display: inline-block;
+    line-height: 2rem;
+    margin: 0 0 0 1.5rem;
+    font-size: 2rem;
+    vertical-align: middle;
+    white-space: nowrap;
+
+    .error, .success {
+        display: inline-block;
+    }
+
+    .error {
+        color: $brand-danger;
+    }
+
+    .success {
+        color: $brand-success;
+    }
+}
+
+.clock {
+    color: $text-color;
+    font-size: 2rem;
+    font-weight: 700;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 1.25rem;
+}
