@@ -114,6 +114,10 @@ const config = {
       '/api': {
         changeOrigin: true,
         target: 'http://10.0.3.1:4316'
+      },
+      '/main': {
+        changeOrigin: true,
+        target: 'http://10.0.3.1:4316'
       }
     },
     headers: {
