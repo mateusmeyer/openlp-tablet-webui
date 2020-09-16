@@ -12,120 +12,29 @@
 	<body>
 		<main class="container-fluid main-container">
 			<div class="row no-gutter">
-				<section class="col-sm-12 col-md-9 main-view__container">
-					<div class="main-view is-5-4">
-						<!--<iframe id="large-iframe-view" src="about:blank" class="main-view__iframe"></iframe>-->		
+				<section class="col-sm-12 col-md-9 main-view__container" id="main-view">
+					<div
+						class="main-view">
+						<!--<iframe id="large-iframe-view" src="about:blank" class="main-view__iframe"></iframe>-->
 						<img id="large-image-view" class="main-view__image">
-
+					</div>
+					<div class="controls">
+						<a href="#" id="control-prev">
+							<i class="glyphicon glyphicon-circle-arrow-left"></i>
+						</a>
+						<a href="#" id="control-next">
+							<i class="glyphicon glyphicon-circle-arrow-right"></i>
+						</a>
 					</div>
 				</section>
-				<aside class="col-sm-12 col-md-3 side-panels">
+				<aside class="col-sm-12 col-md-3 side-panels" id="sidebar">
 					<aside class="col-sm-6 col-md-12 service-list">
 						<span class="label">Serviço/Programação</span>
-						<div class="list" id="service-list">
-							
-						</div>
+						<div class="list" id="service-list"></div>
 					</aside>
 					<aside class="col-sm-6 col-md-12 live-list">
 						<span class="label">Slides/Ao Vivo</span>
-						<div class="list">
-							<a href="#" class="list-item">
-								Item 1
-							</a>
-							<a href="#" class="list-item">
-								Item 2
-							</a>
-							<a href="#" class="list-item">
-								Item 3
-							</a>
-							<a href="#" class="list-item">
-								Item 4
-							</a>
-							<a href="#" class="list-item">
-								Item 5
-							</a>
-							<a href="#" class="list-item">
-								Item 6
-							</a>
-							<a href="#" class="list-item">
-								Item 7
-							</a>
-							<a href="#" class="list-item">
-								Item 8
-							</a>
-							<a href="#" class="list-item">
-								Item 1
-							</a>
-							<a href="#" class="list-item">
-								Item 2
-							</a>
-							<a href="#" class="list-item">
-								Item 3
-							</a>
-							<a href="#" class="list-item">
-								Item 4
-							</a>
-							<a href="#" class="list-item">
-								Item 5
-							</a>
-							<a href="#" class="list-item">
-								Item 6
-							</a>
-							<a href="#" class="list-item">
-								Item 7
-							</a>
-							<a href="#" class="list-item">
-								Item 8
-							</a>
-							<a href="#" class="list-item">
-								Item 1
-							</a>
-							<a href="#" class="list-item">
-								Item 2
-							</a>
-							<a href="#" class="list-item">
-								Item 3
-							</a>
-							<a href="#" class="list-item">
-								Item 4
-							</a>
-							<a href="#" class="list-item">
-								Item 5
-							</a>
-							<a href="#" class="list-item">
-								Item 6
-							</a>
-							<a href="#" class="list-item">
-								Item 7
-							</a>
-							<a href="#" class="list-item">
-								Item 8
-							</a>
-							<a href="#" class="list-item">
-								Item 1
-							</a>
-							<a href="#" class="list-item">
-								Item 2
-							</a>
-							<a href="#" class="list-item">
-								Item 3
-							</a>
-							<a href="#" class="list-item">
-								Item 4
-							</a>
-							<a href="#" class="list-item">
-								Item 5
-							</a>
-							<a href="#" class="list-item">
-								Item 6
-							</a>
-							<a href="#" class="list-item">
-								Item 7
-							</a>
-							<a href="#" class="list-item">
-								Item 8
-							</a>
-						</div>
+						<div class="list" id="controller-list"></div>
 					</aside>
 				</aside>
 			</div>
@@ -133,60 +42,96 @@
 		<nav class="navbar navbar-default navbar-fixed-bottom">
 			<div class="container-fluid">
 				<div class="collapse navbar-collapse">
-          <ul class="navbar-left navbar-nav nav">
-            <li class="active">
-              <a href="#">
-                <i class="glyphicon glyphicon-eye-open"></i>
-                Exibir 
-              </a>
-            </li>
-            <li>
-              <a href="#">
-                <i class="glyphicon glyphicon-eye-close"></i>
-                Tela Preta
-              </a>
-            </li>
-            <li>
-              <a href="#">
-                <i class="glyphicon glyphicon-modal-window"></i>
-                Computador
-              </a>
-            </li>
-          </ul>
-          <ul class="navbar-form navbar-right">
-            <a href="#" class="btn btn-default">
-              <i class="glyphicon glyphicon-cog"></i>
-            </a>
-            <a href="#" class="btn btn-default">
-              <i class="glyphicon glyphicon-search"></i>
-              Pesquisar...
-            </a>
-            <span class="status">
-              <i class="glyphicon glyphicon-ok-sign success hide"></i>
-              <i class="glyphicon glyphicon-exclamation-sign error show"></i>
-            </span>
-            <a href="#" class="clock" style="font-size:2rem;font-weight:700">15:50</a>
-          </ul>
-          <ul class="navbar-nav nav navbar-right" id="mode-buttons">
-            <li data-mode="easier">
-              <a href="#" title="Modo Fácil">
-                <i class="glyphicon glyphicon-th-list"></i>
-              </a>
-            </li>
-            <li data-mode="main">
-              <a href="#" title="Principal">
-                <i class="glyphicon glyphicon-blackboard"></i>
-              </a>
-            </li>
-            <li data-mode="stage">
-              <a href="#" title="Palco">
-                <i class="glyphicon glyphicon-sort-by-attributes"></i>
-              </a>
-            </li>
-          </ul>
+					<ul class="navbar-left navbar-nav nav" id="visibility-buttons">
+						<li data-mode="show">
+							<a href="#">
+								<i class="glyphicon glyphicon-eye-open"></i>
+								Exibir
+							</a>
+						</li>
+						<li data-mode="blank">
+							<a href="#">
+								<i class="glyphicon glyphicon-eye-close"></i>
+								Tela Preta
+							</a>
+						</li>
+						<li data-mode="desktop">
+							<a href="#">
+								<i class="glyphicon glyphicon-modal-window"></i>
+								Computador
+							</a>
+						</li>
+					</ul>
+					<ul class="navbar-form navbar-right">
+						<a href="#" class="btn btn-default" title="Configurações" id="settings-button">
+							<i class="glyphicon glyphicon-cog"></i>
+						</a>
+						<a href="#" class="btn btn-default">
+							<i class="glyphicon glyphicon-search"></i>
+							Pesquisar...
+						</a>
+						<span class="status" id="status">
+							<i class="glyphicon glyphicon-ok-sign success"></i>
+							<i class="glyphicon glyphicon-exclamation-sign error hide"></i>
+						</span>
+						<a href="#" class="clock" style="font-size:2rem;font-weight:700">
+							<span id="clock-hour">
+								--
+							</span>:<span id="clock-minute">
+								--
+							</span>
+						</a>
+					</ul>
+					<ul class="navbar-nav nav navbar-right" id="mode-buttons">
+						<li data-mode="main">
+							<a href="#" title="Principal">
+								<i class="glyphicon glyphicon-blackboard"></i>
+							</a>
+						</li>
+						<li data-mode="presenter">
+							<a href="#" title="Apresentador">
+								<i class="glyphicon glyphicon-th-list"></i>
+							</a>
+						</li>
+					</ul>
 				</div>
 			</div>
 		</nav>
+		<div class="modal fade" id="settings-modal" index="-1" role="dialog">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+						<h4 class="modal-title">Configurações</h4>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label for="input-settings-ratio">Proporção</label>
+							<select class="form-control" id="input-settings-ratio">
+								<option value="4-3" selected>4:3 (1024x768...)</option>
+								<option value="5-4">5:4 (1280x1024...)</option>
+								<option value="16-9">16:9 (1366x768, 1920x1080...)</option>
+								<option value="16-10">16:10 (1440x900, 1920x1200...)</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label for="input-settings-skew">Adiantamento no Relógio (minutos)</label>
+							<input type="number" id="input-settings-skew" class="form-control">
+						</div>
+						<div class="form-group">
+							<label for="input-settings-apiaddr">Endereço da API</label>
+							<input type="text" id="input-settings-apiaddr" class="form-control">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Fechar</button>
+						<button type="button" class="btn btn-primary" id="input-settings-save">Salvar</button>
+					</div>
+				</div>
+			</div>
+		</div>
 		<script src="public/js/es5-polyfills.js"></script>
 	</body>
 </html>

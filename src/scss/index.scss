@@ -72,21 +72,26 @@ body {
     > .row {
         height: 100%;
 
-        @media (min-width: 992px) {
-            .side-panels {
-                height: 100%;
-            }
-            .service-list {
-                height: 40%;
-            }
-            
-            .live-list {
-                height: 60%;
-            }
-        }
-        
     }
 
+    .controls {
+        width: 100%;
+        display: block;
+        text-align: center;
+        padding-top: 16px;
+        border-top: 1px solid $gray-darker;
+
+        > a {
+            font-size: 72px;
+
+            &:hover, &:active {
+                text-decoration: none;
+            }
+        }
+    }
+}
+
+.side-panels {
     .service-list .list {
     }
     .service-list, .live-list {
@@ -111,13 +116,32 @@ body {
             top: $header-margin;
             overflow-x: hidden;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
         }
     }
 
     .live-list {
         border-top: 1px solid $gray;
     }
+
+    @media (min-width: 992px) {
+        & {
+            height: 100%;
+        }
+
+        &.controller-only {
+            .service-list {display: none;}
+            .live-list {height: 100%;}
+        }
+
+        .service-list {
+            height: 40%;
+        }
+        
+        .live-list {
+            height: 60%;
+        }
+    }
+        
 }
 
 .main-view {
@@ -172,8 +196,47 @@ body {
         position: relative;
         color: $text-color;
 
-        .glyphicon {
+        .text, .glyphicon {
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        &.with-icon {
+            .text {
+                padding-left: 26px;
+            }
+        }
+
+        .text {
+            line-height: 1;
+            width: 100%;
+
+            .title {
+                line-height: 1.25;
+            }
+
+            .notes {
+                font-style: italic;
+                line-height: 1;
+            }
+        }
+
+        .icon {
+            font-weight: 700;
+            font-size: 0.913em;
+        }
+
+        .thumbnail {
+            width: 100%;
+        }
+
+        .glyphicon, .icon {
+            position: absolute;
+            top: 50%;
+            -webkit-transform: translateY(-50%);
+            transform: translateY(-50%);
             margin-right: 3px;
+            width: 16px;
         }
 
         &.active {

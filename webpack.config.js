@@ -118,6 +118,14 @@ const config = {
       '/main': {
         changeOrigin: true,
         target: 'http://10.0.3.1:4316'
+      },
+      '/presentations': {
+        changeOrigin: true,
+        target: 'http://10.0.3.1:4316'
+      },
+      '/images': {
+        changeOrigin: true,
+        target: 'http://10.0.3.1:4316'
       }
     },
     headers: {
@@ -165,7 +173,7 @@ files.forEach(file => {
     new HtmlWebPackPlugin({
       filename: path.basename(file),
       template: file,
-      favicon: path.resolve(__dirname, './src/public/icon.ico'),
+     // favicon: path.resolve(__dirname, './src/public/icon.ico'),
       minify: !IS_DEV,
     })
   );

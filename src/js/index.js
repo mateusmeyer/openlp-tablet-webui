@@ -2,10 +2,37 @@ import '../scss/index.scss';
 import 'core-js/es/promise';
 import 'regenerator-runtime/runtime';
 
+import 'bootstrap-sass/assets/javascripts/bootstrap/modal';
+
 import FastClick from 'fastclick';
+window.jq = (fn) => fn(jQuery);
 
 $.ajaxSetup({cache: false, async: true});
 $(document).ready(async() => await (new Main()).run());
+
+// w3schools, https://www.w3schools.com/js/js_cookies.asp
+function setCookie(cname, cvalue, exdays) {
+  var d = new Date();
+  d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+  var expires = "expires="+d.toUTCString();
+  document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+
+// w3schools, https://www.w3schools.com/js/js_cookies.asp
+function getCookie(cname) {
+  var name = cname + "=";
+  var ca = document.cookie.split(';');
+  for(var i = 0; i < ca.length; i++) {
+    var c = ca[i];
+    while (c.charAt(0) == ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) == 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return "";
+}
 
 class Main {
   constructor() {
@@ -13,7 +40,18 @@ class Main {
     this.modeButtons = $('#mode-buttons');
     this.modeButtonsListItems = this.modeButtons.find('li');
     this.serviceList = $('#service-list');
+    this.controllerList = $('#controller-list');
     this.largeImageView = $('#large-image-view');
+    this.mainView = $('#main-view');
+    this.sidebar = $('#sidebar');
+    this.prev = $('#control-prev');
+    this.next = $('#control-next');
+    this.clockHours = $('#clock-hour');
+    this.clockMinutes = $('#clock-minute');
+    this.statusContainer = $('#status');
+    this.settingsButton = $('#settings-button');
+
+    this.visibilityButtons = $('#visibility-buttons');
 
     this.serviceItemsById = {};
     this.controllerItemsById = {};
@@ -28,11 +66,23 @@ class Main {
       slide: -1,
       theme: false,
       twelve: false,
-      lastClickedItem: null
+      lastClickedItem: null,
+      lastClickedControllerItem: null,
+      lastMinute: null,
+      lastHour: null,
+      clockTick: 0,
+      requestError: false,
+      clockSkew: 0,
+      aspectRatio: '4-3'
     };
 
-    this.apiUrl = 'http://10.0.3.1:4317';
-    this.pollInterval = 300;
+    this.initSettings({
+      apiUrl: location.protocol + '//' + location.host + (location.pathname ?? ''),
+      skew: 0,
+      aspectRatio: '4-3'      
+    });
+
+    this.pollInterval = 420;
 
     FastClick.attach(document.body);
     this.hookButtons();
@@ -44,42 +94,102 @@ class Main {
   }
 
   attachPoll() {
-   setInterval(() => this.poll(), this.pollInterval);
+   this.clockTick();
    this.poll(true);
   }
 
+  clockTick() {
+    const date = new Date();
+    date.setTime(date.getTime() + (this.state.clockSkew * 1000 * 60));
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    if (hours != this.state.lastHour) {
+      this.state.lastHour = hours;
+      this.clockHours.text(hours < 10 ? '0' + hours : hours);
+    }
+
+    if (minutes != this.state.lastMinute) {
+      this.state.lastMinute = minutes;
+      this.clockMinutes.text(minutes < 10 ? '0' + minutes : minutes);
+    }
+  }
+
   async poll(first) {
-    const polled = (await $.ajax({
-      dataType: 'json',
-      contentType: 'application/json',
-      url: this.apiUrl + '/api/poll'
-    }))?.results;
-
-    if(first)console.log(polled)
-
-    const serviceChanged = polled.service != this.state.service;
-    const slideChanged = polled.slide != this.state.slide;
-    const itemChanged = this.state.item != polled.item;
-
-    if (serviceChanged || itemChanged) {
-      this.state.slide = polled.slide;
-      this.loadMainImage();
+    if (++this.state.clockTick == 3) {
+      this.clockTick();
+      this.state.clockTick = 0;
     }
 
-    if (itemChanged) {
-      this.state.item = polled.item;
+    try {
+      const polled = (await this.doRequest({
+        dataType: 'json',
+        contentType: 'application/json',
+        url: this.apiUrl + '/api/poll'
+      }))?.results;
 
-      if (polled.item != this.state.lastClickedItem) {
-        this.focusServiceItem(this.serviceItemsById[polled.item], true);
+      if(first)console.log(polled)
+
+      const serviceChanged = polled.service != this.state.service;
+      const slideChanged = polled.slide != this.state.slide;
+      const itemChanged = this.state.item != polled.item;
+
+      if (serviceChanged || slideChanged || itemChanged) {
+        this.state.slide = polled.slide;
+        this.loadMainImage();
       }
-      this.markServiceItemActive(this.serviceItemsById[polled.item], true);
+
+      if (itemChanged) {
+        this.state.item = polled.item;
+        const cachedItem = this.serviceItemsById[polled.item];
+
+        if (cachedItem) {
+          if (polled.item != this.state.lastClickedItem) {
+            this.focusServiceItem(cachedItem, true);
+          }
+          this.markServiceItemActive(cachedItem, true);
+        } else {
+          this.markServiceItemActive(null)
+        }
+      }
+
+      if (serviceChanged) {
+        this.state.service = polled.service;
+        this.loadServiceItems();
+      }
+
+      if (polled.display) {
+        this.focusVisibilityMode('desktop');
+        this.state.visibilityMode = 'desktop';
+      } else if (polled.blank) {
+        this.focusVisibilityMode('blank');
+        this.state.visibilityMode = 'blank';
+      } else if (!polled.display && !polled.blank && !polled.theme) {
+        this.focusVisibilityMode('show');
+        this.state.visibilityMode = 'show';
+      } else {
+        this.focusVisibilityMode('theme');
+        this.state.visibilityMode = 'theme';
+      }
+
+      if (slideChanged || serviceChanged || itemChanged) {
+        this.state.slide = polled.slide;
+        if (this.state.lastClickedControllerItem != polled.slide) {
+          const item = this.controllerItemsById[polled.slide];
+          if (item) {
+            this.focusControllerItem(item);
+            this.markControllerItemActive(item);
+          }
+          this.state.lastClickedControllerItem = polled.slide;
+        }
+        this.loadControllerItems();
+      }
+    } catch(e) {
+      console.error(e);
+      // let's continue loop interval, avoids data freeze
     }
 
-    if (serviceChanged) {
-      this.state.service = polled.service;
-      this.loadServiceItems();
-    }
-
+    setTimeout(() => this.poll(), this.pollInterval);
   }
 
   hookButtons() {
@@ -92,6 +202,53 @@ class Main {
         const mode = el.parent().attr('data-mode');
         await self.loadMode(mode);
       });
+    
+    this.visibilityButtons.find('a')
+      .click(async function(e) {
+        e.preventDefault();
+
+        const el = $(this);
+        const mode = el.parent().attr('data-mode');
+        self.focusVisibilityMode(mode);
+        await self.sendSelectVisibilityMode(mode);
+      });
+    
+    this.prev.click(async (e) => {
+      e.preventDefault();
+      await this.doRequest({
+        url: this.apiUrl + '/api/controller/live/previous'
+      });
+
+      // dont wait for next tick, better ux
+      this.loadMainImage();
+
+      const prevItem = this.controllerItemsById[this.state.lastClickedControllerItem - 1];
+      if (prevItem) {
+        this.focusControllerItem(prevItem);
+        this.markControllerItemActive(prevItem);
+      }
+    });
+    
+    this.next.click(async (e) => {
+      e.preventDefault();
+      await this.doRequest({
+        url: this.apiUrl + '/api/controller/live/next'
+      });
+
+      // dont wait for next tick, better ux
+      this.loadMainImage();
+
+      const next = this.controllerItemsById[this.state.lastClickedControllerItem + 1];
+      if (next) {
+        this.focusControllerItem(next);
+        this.markControllerItemActive(next);
+      }
+    });
+
+    this.settingsButton.click(async (e) => {
+      e.preventDefault();
+      this.openSettings();
+    });
   }
 
   async loadMode(mode) {
@@ -99,8 +256,8 @@ class Main {
       case 'main':
         await this.loadMainMode();
         break;
-      case 'stage':
-        await this.loadStageMode();
+      case 'presenter':
+        await this.loadPresenterMode();
         break;
       case 'easier':
         await this.loadEasierMode();
@@ -114,17 +271,32 @@ class Main {
   }
 
   async loadMainMode() {
-    this.makeModeButtonActive('main')
-    this.loadIframe(this.largeIframeView, this.apiUrl + '/main');
+    this.makeModeButtonActive('main');
+    this.showAllSidebarItems();
   }
 
-  async loadStageMode() {
-    this.makeModeButtonActive('stage')
-    this.loadIframe(this.largeIframeView, this.apiUrl + '/stage');
+  async loadPresenterMode() {
+    this.makeModeButtonActive('presenter')
+    this.showSidebarControllerOnly();
   }
 
   async loadEasierMode() {
     this.makeModeButtonActive('easier');
+  }
+
+  showAllSidebarItems() {
+    this.mainView.removeClass('col-md-7');
+    this.mainView.addClass('col-md-9');
+    this.sidebar.removeClass('col-md-5');
+    this.sidebar.addClass('col-md-3');
+    this.sidebar.removeClass('controller-only');
+  }
+  showSidebarControllerOnly() {
+    this.mainView.removeClass('col-md-9');
+    this.mainView.addClass('col-md-7');
+    this.sidebar.removeClass('col-md-3');
+    this.sidebar.addClass('col-md-5');
+    this.sidebar.addClass('controller-only');
   }
 
   async loadSidebarItems() {
@@ -133,13 +305,7 @@ class Main {
   }
 
   async loadServiceItems() {
-    let items;
-    
-    try {
-      items = await this.listServiceItems();
-    } catch(e) {
-      this.showError(e);
-    }
+    const items = await this.listServiceItems();
 
     console.log(items);
 
@@ -152,10 +318,17 @@ class Main {
     for (let item of items.results.items) {
       item = {...item, order: i};
 
+      let notesMarkup = item.notes ?
+        `<br><small class="notes">${item.notes.replace(/\n/ig, '<br>')}</small>`
+        : '';
+
       const markup = `
-        <a href="#" class="list-item${item.selected?' active': ''}" data-id="${item.id}">
+        <a href="#" class="list-item with-icon${item.selected?' active': ''}" data-id="${item.id}">
           ${this.makeIcon(item.plugin)}
-          ${item.title}
+          <span class="text">
+            <span class="title">${item.title}</span>
+            ${notesMarkup}
+          </span>
         </a>`;
       const el = $(markup);
 
@@ -170,8 +343,8 @@ class Main {
         await this.sendSelectServiceItem(item);
       });
 
-      if (item.selected) {
-        focused = item.id;
+      if (item.selected && (this.state.lastClickedItem != item.id)) {
+        focused = item;
       }
 
       ++i;
@@ -185,13 +358,15 @@ class Main {
   focusServiceItem(item) {
     const focusedEl = this.serviceItemsById[item.id]?.el;
     if (focusedEl) {
-      this.serviceList.scrollTop(focusedEl.position().top - (focusedEl.height() / 2));
+      this.serviceList.scrollTop((focusedEl.position().top + this.serviceList.scrollTop()) - 48);
     }
   }
   markServiceItemActive(item) {
-    const focusedEl = this.serviceItemsById[item.id]?.el;
+    const focusedEl = this.serviceItemsById[item?.id]?.el;
     this.serviceList.children('.active').removeClass('active');
-    focusedEl.addClass('active');
+    if (focusedEl) {
+      focusedEl.addClass('active');
+    }
   }
 
   makeIcon(type) {
@@ -202,22 +377,154 @@ class Main {
         return '<i class="glyphicon glyphicon-book"></i>';
       case 'presentations':
         return '<i class="glyphicon glyphicon-blackboard"></i>';
+      case 'images':
+        return '<i class="glyphicon glyphicon-picture"></i>';
       default:
         return '<i class="glyphicon glyphicon-question-sign"></i>';
     }
   }
 
   async loadControllerItems() {
+    const items = await this.listControllerItems();
 
+    console.log(items);
+
+    this.controllerItemsByIdItemsById = {};
+    this.controllerList.empty();
+
+    let focused = null;
+    let i = 0;
+
+    for (let item of items.results.slides) {
+      item = {...item, order: i};
+      
+      const mainText =
+        item.title
+        ?? item.html;
+
+      const withImg = !!item.img;
+      const withIcon = true;
+      const iconMarkup = withIcon
+        ? `
+          <span class="icon">
+            ${item.tag}
+          </span>`
+        : '';
+
+      let thumbSize = '400x400';
+      switch (this.state.aspectRatio) {
+        case '4-3':
+          thumbSize = '400x300';
+          break;
+        case '5-4':
+          thumbSize = '400x320';
+          break;
+        case '16-9':
+          thumbSize = '400x225';
+          break;
+        case '16-10':
+          thumbSize = '400x250';
+          break;
+      }
+
+      const imgMarkup = withImg
+        ? `<img class="thumbnail" src="${this.apiUrl + item.img.replace('/thumbnails/', '/thumbnails400x300/')}">`
+        : '';
+
+      const notesMarkup = item.slide_notes ?
+        `<br><small class="notes">${item.slide_notes.replace(/\n/ig, '<br>')}</small>`
+        : '';
+
+      const markup = `
+        <a href="#" class="list-item${withIcon?' with-icon':''}${item.selected?' active': ''}" data-id="${item.order}">
+          ${iconMarkup}
+          <span class="text">
+            ${imgMarkup}
+            <span class="title">${mainText}</span>
+            ${notesMarkup}
+          </span>
+        </a>`;
+      const el = $(markup);
+
+      this.controllerList.append(el);
+      item.el = el;
+      this.controllerItemsById[i] = item;
+
+      el.click(async (e) => {
+        e.preventDefault();
+
+        this.state.lastClickedControllerItem = item.order;
+        this.markControllerItemActive(item);
+        await this.sendSelectControllerItem(item);
+      });
+
+      if (item.selected) {
+        focused = item;
+      }
+
+      ++i;
+    }
+
+    if (focused && (focused.order != this.state.lastClickedControllerItem)) {
+      this.focusControllerItem(focused);
+    }
+  }
+
+  focusControllerItem(item) {
+    const focusedEl = this.controllerItemsById[item.order]?.el;
+    if (focusedEl) {
+      this.controllerList.scrollTop((focusedEl.position().top + this.controllerList.scrollTop()) - 64);
+    }
+  }
+  markControllerItemActive(item) {
+    const focusedEl = this.controllerItemsById[item.order]?.el;
+    this.controllerList.children('.active').removeClass('active');
+    if (focusedEl) {
+      focusedEl.addClass('active');
+    }
+  }
+  
+  focusVisibilityMode(mode) {
+    if (mode != this.state.visibilityMode) {
+      this.visibilityButtons.children('.active').removeClass('active');
+      this.visibilityButtons.find(`[data-mode=${mode}]`).addClass('active');
+    }
+  }
+
+  async doRequest(data) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const result = await $.ajax(data);
+        resolve(result);
+      } catch (e) {
+        this.state.requestError = true;
+        this.showError(e);
+        resolve(undefined);
+      }
+    }); 
   }
 
   showError(error) {
-    alert('Erro');
+    this.statusContainer
+      .children('.success')
+      .addClass('hide')
+    this.statusContainer
+      .children('.error')
+      .removeClass('hide');
   }
 
-  listServiceItems() {
+  async listServiceItems() {
       const url = this.apiUrl + '/api/service/list';
-      return $.ajax({
+      return this.doRequest({
+          contentType: 'application/json',
+          dataType: 'json',
+          url
+      });
+  }
+
+  async listControllerItems() {
+      const url = this.apiUrl + '/api/controller/live/text';
+      return this.doRequest({
           contentType: 'application/json',
           dataType: 'json',
           url
@@ -225,15 +532,29 @@ class Main {
   }
   
   async sendSelectServiceItem(item) {
-    await $.ajax({
+    await this.doRequest({
       url: this.apiUrl + '/api/service/set',
       dataType: 'json',
       data: {data:`{"request":{"id":${item.order}}}`}
     });
   }
+  
+  async sendSelectControllerItem(item) {
+    await this.doRequest({
+      url: this.apiUrl + '/api/controller/live/set',
+      dataType: 'json',
+      data: {data:`{"request":{"id":${item.order}}}`}
+    });
+  }
+  
+  async sendSelectVisibilityMode(mode) {
+    await this.doRequest({
+      url: this.apiUrl + '/api/display/' + mode,
+    });
+  }
 
   async loadMainImage() {
-    const mainImage = (await $.ajax({
+    const mainImage = (await this.doRequest({
       contentType: 'application/json',
       dataType: 'json',
       url: this.apiUrl + '/main/image',
@@ -242,6 +563,65 @@ class Main {
     if (mainImage) {
       this.largeImageView.attr('src', mainImage.slide_image);
     }
+  }
+
+  initSettings(defaultValues) {
+    let settings = this.getSettings(defaultValues);
+
+    this.apiUrl = settings.apiUrl[settings.apiUrl.length - 1] == '/'
+      ? settings.apiUrl.substr(0, settings.apiUrl.length - 1)
+      : settings.apiUrl;
+
+    this.state.aspectRatio = settings.aspectRatio;
+    this.state.clockSkew = settings.skew;
+
+    this.mainView.children('.main-view').addClass('is-' + settings.aspectRatio);
+  }
+
+  getSettings(defaultValues) {
+    const settings = getCookie('openlp_settings');
+
+    if (settings) {
+      let object = {};
+      
+      for(const item of settings.split('|')) {
+        const [key, value] = item.split('\\');
+        object[key] = value;
+      }
+
+      return object;
+    }
+
+    return defaultValues;
+  }
+
+  setSettings(data) {
+    const items = [];
+
+    for (const key in data) {
+      if (data.hasOwnProperty(key)) {
+        items.push(key+'\\'+data[key]);
+      }
+    }
+
+    setCookie('openlp_settings', items.join('|'), 3600);
+  }
+
+  openSettings() {
+    $('#input-settings-skew').val(this.state.clockSkew);
+    $('#input-settings-apiaddr').val(this.apiUrl);
+    $('#input-settings-ratio').val(this.state.aspectRatio);
+    $('#input-settings-save').unbind('click');
+    $('#input-settings-save').click((e) => {
+      const settings = {
+        skew: $('#input-settings-skew').val(),
+        apiUrl: $('#input-settings-apiaddr').val(),
+        aspectRatio: $('#input-settings-ratio').val()
+      };
+      this.setSettings(settings);
+      location.reload();
+    });
+    $('#settings-modal').modal('show');
   }
 
   loadIframe(target, src) {
