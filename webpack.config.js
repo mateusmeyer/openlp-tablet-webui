@@ -8,6 +8,8 @@ const PreloadWebpackPlugin = require('preload-webpack-plugin');
 const CssUrlRelativePlugin = require('css-url-relative-plugin');
 const glob = require('glob');
 
+const proxyUrl = process.env.OPENLP_PROXY_URL ?? 'http://localhost:4316'; 
+
 const IS_DEV = process.env.NODE_ENV === 'dev';
 
 const config = {
@@ -113,19 +115,19 @@ const config = {
     proxy: {
       '/api': {
         changeOrigin: true,
-        target: 'http://10.0.3.1:4316'
+        target: proxyUrl, 
       },
       '/main': {
         changeOrigin: true,
-        target: 'http://10.0.3.1:4316'
+        target: proxyUrl,
       },
       '/presentations': {
         changeOrigin: true,
-        target: 'http://10.0.3.1:4316'
+        target: proxyUrl,
       },
       '/images': {
         changeOrigin: true,
-        target: 'http://10.0.3.1:4316'
+        target: proxyUrl,
       }
     },
     headers: {

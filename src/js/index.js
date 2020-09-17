@@ -7,7 +7,7 @@ import 'bootstrap-sass/assets/javascripts/bootstrap/modal';
 import FastClick from 'fastclick';
 window.jq = (fn) => fn(jQuery);
 
-$.ajaxSetup({cache: false, async: true});
+$.ajaxSetup({cache: false, async: true, timeout: 2000});
 $(document).ready(async() => await (new Main()).run());
 
 // w3schools, https://www.w3schools.com/js/js_cookies.asp
@@ -73,13 +73,16 @@ class Main {
       clockTick: 0,
       requestError: false,
       clockSkew: 0,
-      aspectRatio: '4-3'
+      aspectRatio: '4-3',
+      slideQuirkTimeout: 500,
+      shownErrorOnConsole: false
     };
 
     this.initSettings({
       apiUrl: location.protocol + '//' + location.host + (location.pathname ?? ''),
       skew: 0,
-      aspectRatio: '4-3'      
+      aspectRatio: '4-3',
+      slideQuirkTimeout: 500
     });
 
     this.pollInterval = 420;
@@ -134,15 +137,24 @@ class Main {
       const slideChanged = polled.slide != this.state.slide;
       const itemChanged = this.state.item != polled.item;
 
+      const cachedItem = this.serviceItemsById[polled.item];
+
+      this.state.service = polled.service;
+      this.state.slide = polled.slide;
+      this.state.item = polled.item;
+
       if (serviceChanged || slideChanged || itemChanged) {
-        this.state.slide = polled.slide;
-        this.loadMainImage();
+        // delaying image retrieval due to presentation software delay
+        if (cachedItem && (cachedItem.plugin == 'presentations')) {
+          this.mainImageTimeoutHandle = setTimeout(() => {
+            this.loadMainImage(true);
+          }, this.state.slideQuirkTimeout);
+        } else {
+          this.loadMainImage();
+        }
       }
 
       if (itemChanged) {
-        this.state.item = polled.item;
-        const cachedItem = this.serviceItemsById[polled.item];
-
         if (cachedItem) {
           if (polled.item != this.state.lastClickedItem) {
             this.focusServiceItem(cachedItem, true);
@@ -184,8 +196,13 @@ class Main {
         }
         this.loadControllerItems();
       }
+      
+      this.shownErrorOnConsole = false;
     } catch(e) {
-      console.error(e);
+      if (!this.shownErrorOnConsole) {
+        this.shownErrorOnConsole = true;
+        console.error(e);
+      }
       // let's continue loop interval, avoids data freeze
     }
 
@@ -249,6 +266,10 @@ class Main {
       e.preventDefault();
       this.openSettings();
     });
+
+    this.largeImageView.click(async (e) => {
+      this.loadMainImage(true);
+    });
   }
 
   async loadMode(mode) {
@@ -306,8 +327,6 @@ class Main {
 
   async loadServiceItems() {
     const items = await this.listServiceItems();
-
-    console.log(items);
 
     this.serviceItemsById = {};
     this.serviceList.empty();
@@ -386,8 +405,6 @@ class Main {
 
   async loadControllerItems() {
     const items = await this.listControllerItems();
-
-    console.log(items);
 
     this.controllerItemsByIdItemsById = {};
     this.controllerList.empty();
@@ -499,7 +516,7 @@ class Main {
       } catch (e) {
         this.state.requestError = true;
         this.showError(e);
-        resolve(undefined);
+        reject(e);
       }
     }); 
   }
@@ -553,12 +570,28 @@ class Main {
     });
   }
 
-  async loadMainImage() {
-    const mainImage = (await this.doRequest({
+  async loadMainImage(abortLast = false) {
+    console.log('image')
+    if (this.mainImageRequest) {
+      if (abortLast) {
+        this.mainImageRequest.abort();
+        this.mainImageRequest = null;
+        alert('aborted');
+      } else {
+        return;
+      }
+    } 
+    const xhr = this.doRequest({
       contentType: 'application/json',
       dataType: 'json',
       url: this.apiUrl + '/main/image',
-    }))?.results;
+    });
+
+    this.mainImageRequest = xhr;
+
+    const mainImage = (await xhr)?.results;
+
+    this.mainImageRequest = null;
 
     if (mainImage) {
       this.largeImageView.attr('src', mainImage.slide_image);
@@ -572,8 +605,9 @@ class Main {
       ? settings.apiUrl.substr(0, settings.apiUrl.length - 1)
       : settings.apiUrl;
 
-    this.state.aspectRatio = settings.aspectRatio;
-    this.state.clockSkew = settings.skew;
+    this.state.aspectRatio = settings.aspectRatio ?? defaultValues.aspectRatio;
+    this.state.clockSkew = settings.skew ?? defaultValues.clockSkew;
+    this.state.slideQuirkTimeout = settings.slideQuirkTimeout ?? defaultValues.slideQuirkTimeout;
 
     this.mainView.children('.main-view').addClass('is-' + settings.aspectRatio);
   }
@@ -611,12 +645,14 @@ class Main {
     $('#input-settings-skew').val(this.state.clockSkew);
     $('#input-settings-apiaddr').val(this.apiUrl);
     $('#input-settings-ratio').val(this.state.aspectRatio);
+    $('#input-settings-slidequirktimeout').val(this.state.slideQuirkTimeout);
     $('#input-settings-save').unbind('click');
     $('#input-settings-save').click((e) => {
       const settings = {
         skew: $('#input-settings-skew').val(),
         apiUrl: $('#input-settings-apiaddr').val(),
-        aspectRatio: $('#input-settings-ratio').val()
+        aspectRatio: $('#input-settings-ratio').val(),
+        slideQuirkTimeout: $('#input-settings-slidequirktimeout').val()
       };
       this.setSettings(settings);
       location.reload();
