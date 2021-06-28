@@ -92,6 +92,7 @@ body {
 }
 
 .side-panels {
+    background-color: $gray-base;
     @media only screen and (max-width: 991px) {
         position: absolute;
         bottom: 0px;
@@ -334,7 +335,11 @@ body {
     color: $text-color;
     font-size: 2rem;
     font-weight: 700;
-    display: inline-block;
+    display: none;
     vertical-align: middle;
     margin-left: 1.25rem;
+
+    &.visible {
+        display: inline-block;
+    }
 }

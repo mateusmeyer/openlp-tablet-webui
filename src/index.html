@@ -66,15 +66,15 @@
 						<a href="#" class="btn btn-default" title="Configurações" id="settings-button">
 							<i class="glyphicon glyphicon-cog"></i>
 						</a>
-						<a href="#" class="btn btn-default">
+						<!--<a href="#" class="btn btn-default">
 							<i class="glyphicon glyphicon-search"></i>
 							Pesquisar...
-						</a>
+						</a>-->
 						<span class="status" id="status">
 							<i class="glyphicon glyphicon-ok-sign success"></i>
 							<i class="glyphicon glyphicon-exclamation-sign error hide"></i>
 						</span>
-						<a href="#" class="clock" style="font-size:2rem;font-weight:700">
+						<a href="#" id="clock" class="clock" style="font-size:2rem;font-weight:700">
 							<span id="clock-hour">
 								--
 							</span>:<span id="clock-minute">
@@ -119,6 +119,12 @@
 						<div class="form-group">
 							<label for="input-settings-skew">Adiantamento no Relógio (minutos)</label>
 							<input type="number" id="input-settings-skew" class="form-control">
+						</div>
+						<div class="checkbox">
+							<label for="input-settings-clock">
+                <input type="checkbox" id="input-settings-clock">
+                Exibir Relógio
+              </label>
 						</div>
 						<div class="form-group">
 							<label for="input-settings-apiaddr">Endereço da API</label>

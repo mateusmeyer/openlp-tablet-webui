@@ -13,16 +13,16 @@ $(document).ready(async() => await (new Main()).run());
 // w3schools, https://www.w3schools.com/js/js_cookies.asp
 function setCookie(cname, cvalue, exdays) {
   var d = new Date();
-  d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
-  var expires = "expires="+d.toUTCString();
-  document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+  d.setTime(d.getTime() + exdays * 24 * 60 * 60 * 1000);
+  var expires = `expires=${d.toUTCString()}`;
+  document.cookie = `${cname}=${cvalue};${expires};path=/`;
 }
 
 // w3schools, https://www.w3schools.com/js/js_cookies.asp
 function getCookie(cname) {
-  var name = cname + "=";
+  var name = cname + '=';
   var ca = document.cookie.split(';');
-  for(var i = 0; i < ca.length; i++) {
+  for (var i = 0; i < ca.length; i++) {
     var c = ca[i];
     while (c.charAt(0) == ' ') {
       c = c.substring(1);
@@ -31,7 +31,7 @@ function getCookie(cname) {
       return c.substring(name.length, c.length);
     }
   }
-  return "";
+  return '';
 }
 
 class Main {
@@ -46,6 +46,7 @@ class Main {
     this.sidebar = $('#sidebar');
     this.prev = $('#control-prev');
     this.next = $('#control-next');
+    this.clock = $('#clock');
     this.clockHours = $('#clock-hour');
     this.clockMinutes = $('#clock-minute');
     this.statusContainer = $('#status');
@@ -73,16 +74,18 @@ class Main {
       clockTick: 0,
       requestError: false,
       clockSkew: 0,
+      showClock: true,
       aspectRatio: '4-3',
       slideQuirkTimeout: 500,
-      shownErrorOnConsole: false
+      shownErrorOnConsole: false,
     };
 
     this.initSettings({
       apiUrl: location.protocol + '//' + location.host + (location.pathname ?? ''),
       skew: 0,
+      showClock: true,
       aspectRatio: '4-3',
-      slideQuirkTimeout: 500
+      slideQuirkTimeout: 500,
     });
 
     this.pollInterval = 420;
@@ -118,10 +121,13 @@ class Main {
     }
   }
 
-  async poll(first) {
-    if (++this.state.clockTick == 3) {
-      this.clockTick();
-      this.state.clockTick = 0;
+  async poll() {
+    // only query time every 3 poll cycles
+    if (this.state.showClock) {
+      if (++this.state.clockTick == 3) {
+        this.clockTick();
+        this.state.clockTick = 0;
+      }
     }
 
     try {
@@ -130,8 +136,6 @@ class Main {
         contentType: 'application/json',
         url: this.apiUrl + '/api/poll'
       }))?.results;
-
-      if(first)console.log(polled)
 
       const serviceChanged = polled.service != this.state.service;
       const slideChanged = polled.slide != this.state.slide;
@@ -144,14 +148,7 @@ class Main {
       this.state.item = polled.item;
 
       if (serviceChanged || slideChanged || itemChanged) {
-        // delaying image retrieval due to presentation software delay
-        if (cachedItem && (cachedItem.plugin == 'presentations')) {
-          this.mainImageTimeoutHandle = setTimeout(() => {
-            this.loadMainImage(true);
-          }, this.state.slideQuirkTimeout);
-        } else {
-          this.loadMainImage();
-        }
+        this.queryMainImage(cachedItem)
       }
 
       if (itemChanged) {
@@ -212,7 +209,7 @@ class Main {
   hookButtons() {
     const self = this;
     this.modeButtons.find('a')
-      .click(async function(e) {
+      .on('click', async function(e) {
         e.preventDefault();
 
         const el = $(this);
@@ -221,22 +218,26 @@ class Main {
       });
     
     this.visibilityButtons.find('a')
-      .click(async function(e) {
+      .on('click', async function(e) {
         e.preventDefault();
 
         const el = $(this);
         const mode = el.parent().attr('data-mode');
         self.focusVisibilityMode(mode);
         await self.sendSelectVisibilityMode(mode);
+        setTimeout(() => {
+          self.queryMainImage();
+        }, 100);
       });
     
-    this.prev.click(async (e) => {
+    this.prev.on('click', async (e) => {
       e.preventDefault();
+
       await this.doRequest({
         url: this.apiUrl + '/api/controller/live/previous'
       });
 
-      // dont wait for next tick, better ux
+      // dont wait for next tick, will present main image faster
       this.loadMainImage();
 
       const prevItem = this.controllerItemsById[this.state.lastClickedControllerItem - 1];
@@ -246,13 +247,14 @@ class Main {
       }
     });
     
-    this.next.click(async (e) => {
+    this.next.on('click', async (e) => {
       e.preventDefault();
+
       await this.doRequest({
         url: this.apiUrl + '/api/controller/live/next'
       });
 
-      // dont wait for next tick, better ux
+      // dont wait for next tick, will present main image faster
       this.loadMainImage();
 
       const next = this.controllerItemsById[this.state.lastClickedControllerItem + 1];
@@ -262,14 +264,18 @@ class Main {
       }
     });
 
-    this.settingsButton.click(async (e) => {
+    this.settingsButton.on('click', (e) => {
       e.preventDefault();
       this.openSettings();
     });
 
-    this.largeImageView.click(async (e) => {
+    this.largeImageView.on('click', () => {
       this.loadMainImage(true);
     });
+
+    if (this.state.showClock) {
+      this.clock.addClass('visible');
+    }
   }
 
   async loadMode(mode) {
@@ -445,7 +451,7 @@ class Main {
       }
 
       const imgMarkup = withImg
-        ? `<img class="thumbnail" src="${this.apiUrl + item.img.replace('/thumbnails/', '/thumbnails400x300/')}">`
+        ? `<img class="thumbnail" src="${this.apiUrl + item.img.replace('/thumbnails/', `/thumbnails${thumbSize}`)}">`
         : '';
 
       const notesMarkup = item.slide_notes ?
@@ -467,7 +473,7 @@ class Main {
       item.el = el;
       this.controllerItemsById[i] = item;
 
-      el.click(async (e) => {
+      el.on('click', async (e) => {
         e.preventDefault();
 
         this.state.lastClickedControllerItem = item.order;
@@ -509,19 +515,17 @@ class Main {
   }
 
   async doRequest(data) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const result = await $.ajax(data);
-        resolve(result);
-      } catch (e) {
-        this.state.requestError = true;
-        this.showError(e);
-        reject(e);
-      }
-    }); 
+    try {
+      const result = await $.ajax(data);
+      return result;
+    } catch (e) {
+      this.state.requestError = true;
+      this.showError(e);
+      throw e;
+    }
   }
 
-  showError(error) {
+  showError(error) { // eslint-disable-line no-unused-vars
     this.statusContainer
       .children('.success')
       .addClass('hide')
@@ -569,14 +573,25 @@ class Main {
       url: this.apiUrl + '/api/display/' + mode,
     });
   }
+  
+  queryMainImage(cachedItem, alwaysUseQuirk) {
+    cachedItem = cachedItem || this.serviceItemsById[this.state.item];
+
+    // delaying image retrieval due to presentation software delay
+    if (alwaysUseQuirk || (cachedItem && (cachedItem.plugin == 'presentations'))) {
+      this.mainImageTimeoutHandle = setTimeout(() => {
+        this.loadMainImage(true);
+      }, this.state.slideQuirkTimeout);
+    } else {
+      this.loadMainImage();
+    }
+  }
 
   async loadMainImage(abortLast = false) {
-    console.log('image')
     if (this.mainImageRequest) {
       if (abortLast) {
         this.mainImageRequest.abort();
         this.mainImageRequest = null;
-        alert('aborted');
       } else {
         return;
       }
@@ -608,6 +623,9 @@ class Main {
     this.state.aspectRatio = settings.aspectRatio ?? defaultValues.aspectRatio;
     this.state.clockSkew = settings.skew ?? defaultValues.clockSkew;
     this.state.slideQuirkTimeout = settings.slideQuirkTimeout ?? defaultValues.slideQuirkTimeout;
+    this.state.showClock = typeof settings.showClock == 'string' && settings.showClock.length
+      ? settings.showClock == '1'
+      : defaultValues.showClock;
 
     this.mainView.children('.main-view').addClass('is-' + settings.aspectRatio);
   }
@@ -637,19 +655,22 @@ class Main {
         items.push(key+'\\'+data[key]);
       }
     }
+    alert(items.join('|'))
 
     setCookie('openlp_settings', items.join('|'), 3600);
   }
 
   openSettings() {
+    $('#input-settings-clock').attr("checked", this.state.showClock);
     $('#input-settings-skew').val(this.state.clockSkew);
     $('#input-settings-apiaddr').val(this.apiUrl);
     $('#input-settings-ratio').val(this.state.aspectRatio);
     $('#input-settings-slidequirktimeout').val(this.state.slideQuirkTimeout);
-    $('#input-settings-save').unbind('click');
-    $('#input-settings-save').click((e) => {
+    $('#input-settings-save').off('click');
+    $('#input-settings-save').on('click', () => {
       const settings = {
         skew: $('#input-settings-skew').val(),
+        showClock: $('#input-settings-clock').is(':checked') ? 1 : 0,
         apiUrl: $('#input-settings-apiaddr').val(),
         aspectRatio: $('#input-settings-ratio').val(),
         slideQuirkTimeout: $('#input-settings-slidequirktimeout').val()
@@ -661,11 +682,11 @@ class Main {
   }
 
   loadIframe(target, src) {
-    target.load((e) => {
+    target.load(() => {
       target.css('opacity', '1');
     })
     target.css('opacity', '0');
     target.prop('src', src);
     return target;
   }
-};
+}
