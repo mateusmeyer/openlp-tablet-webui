@@ -112,7 +112,7 @@ const config = {
   ],
   devServer: {
     contentBase: path.join(__dirname, 'src'),
-    proxy: {
+    proxy: proxyUrl.trim() ? {
       '/api': {
         changeOrigin: true,
         target: proxyUrl, 
@@ -129,7 +129,7 @@ const config = {
         changeOrigin: true,
         target: proxyUrl,
       }
-    },
+    } : {},
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",

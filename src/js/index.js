@@ -49,6 +49,7 @@ class Main {
     this.clock = $('#clock');
     this.clockHours = $('#clock-hour');
     this.clockMinutes = $('#clock-minute');
+    this.clockTwelve = $('#clock-twelve');
     this.statusContainer = $('#status');
     this.settingsButton = $('#settings-button');
 
@@ -78,6 +79,7 @@ class Main {
       aspectRatio: '4-3',
       slideQuirkTimeout: 500,
       shownErrorOnConsole: false,
+      firstPoll: true,
     };
 
     this.initSettings({
@@ -107,17 +109,34 @@ class Main {
   clockTick() {
     const date = new Date();
     date.setTime(date.getTime() + (this.state.clockSkew * 1000 * 60));
-    const hours = date.getHours();
+    let hours = date.getHours();
+    let twelve = null;
+    let zero = '0';
     const minutes = date.getMinutes();
+
+    if (this.state.twelve) {
+      zero = '';
+      twelve = hours < 12 ? 'AM' : 'PM';
+
+      if (hours == 0) {
+        hours = 12;
+      }
+
+      if (hours > 12) {
+        hours -= 12;
+      }
+
+      this.clockTwelve.text(twelve);
+    }
 
     if (hours != this.state.lastHour) {
       this.state.lastHour = hours;
-      this.clockHours.text(hours < 10 ? '0' + hours : hours);
+      this.clockHours.text(hours < 10 ? zero + hours : hours);
     }
 
     if (minutes != this.state.lastMinute) {
       this.state.lastMinute = minutes;
-      this.clockMinutes.text(minutes < 10 ? '0' + minutes : minutes);
+      this.clockMinutes.text(minutes < 10 ? zero + minutes : minutes);
     }
   }
 
@@ -131,70 +150,69 @@ class Main {
     }
 
     try {
-      const polled = (await this.doRequest({
-        dataType: 'json',
-        contentType: 'application/json',
-        url: this.apiUrl + '/api/poll'
-      }))?.results;
+      let polled = await this.doRequestPoll(); 
 
-      const serviceChanged = polled.service != this.state.service;
-      const slideChanged = polled.slide != this.state.slide;
-      const itemChanged = this.state.item != polled.item;
+      if (polled) {
+        const serviceChanged = polled.service != this.state.service;
+        const slideChanged = polled.slide != this.state.slide;
+        const itemChanged = this.state.item != polled.item;
 
-      const cachedItem = this.serviceItemsById[polled.item];
+        const cachedItem = this.serviceItemsById[polled.item];
 
-      this.state.service = polled.service;
-      this.state.slide = polled.slide;
-      this.state.item = polled.item;
-
-      if (serviceChanged || slideChanged || itemChanged) {
-        this.queryMainImage(cachedItem)
-      }
-
-      if (itemChanged) {
-        if (cachedItem) {
-          if (polled.item != this.state.lastClickedItem) {
-            this.focusServiceItem(cachedItem, true);
-          }
-          this.markServiceItemActive(cachedItem, true);
-        } else {
-          this.markServiceItemActive(null)
-        }
-      }
-
-      if (serviceChanged) {
         this.state.service = polled.service;
-        this.loadServiceItems();
-      }
-
-      if (polled.display) {
-        this.focusVisibilityMode('desktop');
-        this.state.visibilityMode = 'desktop';
-      } else if (polled.blank) {
-        this.focusVisibilityMode('blank');
-        this.state.visibilityMode = 'blank';
-      } else if (!polled.display && !polled.blank && !polled.theme) {
-        this.focusVisibilityMode('show');
-        this.state.visibilityMode = 'show';
-      } else {
-        this.focusVisibilityMode('theme');
-        this.state.visibilityMode = 'theme';
-      }
-
-      if (slideChanged || serviceChanged || itemChanged) {
         this.state.slide = polled.slide;
-        if (this.state.lastClickedControllerItem != polled.slide) {
-          const item = this.controllerItemsById[polled.slide];
-          if (item) {
-            this.focusControllerItem(item);
-            this.markControllerItemActive(item);
-          }
-          this.state.lastClickedControllerItem = polled.slide;
+        this.state.item = polled.item;
+        this.state.twelve = polled.twelve;
+
+        if (serviceChanged || slideChanged || itemChanged) {
+          this.queryMainImage(cachedItem)
         }
-        this.loadControllerItems();
+
+        if (itemChanged) {
+          if (cachedItem) {
+            if (polled.item != this.state.lastClickedItem) {
+              this.focusServiceItem(cachedItem, true);
+            }
+            this.markServiceItemActive(cachedItem, true);
+          } else {
+            this.markServiceItemActive(null)
+          }
+        }
+
+        if (serviceChanged) {
+          this.state.service = polled.service;
+          this.loadServiceItems();
+        }
+
+        if (polled.display) {
+          this.focusVisibilityMode('desktop');
+          this.state.visibilityMode = 'desktop';
+        } else if (polled.blank) {
+          this.focusVisibilityMode('blank');
+          this.state.visibilityMode = 'blank';
+        } else if (!polled.display && !polled.blank && !polled.theme) {
+          this.focusVisibilityMode('show');
+          this.state.visibilityMode = 'show';
+        } else {
+          this.focusVisibilityMode('theme');
+          this.state.visibilityMode = 'theme';
+        }
+
+        if (slideChanged || serviceChanged || itemChanged) {
+          this.state.slide = polled.slide;
+          if (this.state.lastClickedControllerItem != polled.slide) {
+            const item = this.controllerItemsById[polled.slide];
+            if (item) {
+              this.focusControllerItem(item);
+              this.markControllerItemActive(item);
+            }
+            this.state.lastClickedControllerItem = polled.slide;
+          }
+          this.loadControllerItems();
+        }
+        
+        this.shownErrorOnConsole = false;
       }
-      
-      this.shownErrorOnConsole = false;
     } catch(e) {
       if (!this.shownErrorOnConsole) {
         this.shownErrorOnConsole = true;
@@ -451,7 +469,7 @@ class Main {
       }
 
       const imgMarkup = withImg
-        ? `<img class="thumbnail" src="${this.apiUrl + item.img.replace('/thumbnails/', `/thumbnails${thumbSize}`)}">`
+        ? `<img class="thumbnail" src="${this.apiUrl + item.img.replace('/thumbnails/', `/thumbnails${thumbSize}/`)}">`
         : '';
 
       const notesMarkup = item.slide_notes ?
@@ -512,6 +530,14 @@ class Main {
       this.visibilityButtons.children('.active').removeClass('active');
       this.visibilityButtons.find(`[data-mode=${mode}]`).addClass('active');
     }
+  }
+
+  async doRequstPoll() {
+    return await this.doRequest({
+      dataType: 'json',
+      contentType: 'application/json',
+      url: this.apiUrl + '/api/poll'
+    })?.results;
   }
 
   async doRequest(data) {
@@ -596,20 +622,26 @@ class Main {
         return;
       }
     } 
-    const xhr = this.doRequest({
+    const asyncXhr = this.doRequest({
       contentType: 'application/json',
       dataType: 'json',
       url: this.apiUrl + '/main/image',
     });
 
-    this.mainImageRequest = xhr;
+    this.mainImageRequest = asyncXhr;
+    const xhr = await asyncXhr;
+    let mainImage;
 
-    const mainImage = (await xhr)?.results;
+    if ('results' in xhr) {
+      mainImage = xhr?.results;
+    } else {
+      mainImage = xhr;
+    }
 
     this.mainImageRequest = null;
 
     if (mainImage) {
-      this.largeImageView.attr('src', mainImage.slide_image);
+      this.largeImageView.attr('src', mainImage?.slide_image);
     }
   }
 
@@ -655,7 +687,6 @@ class Main {
         items.push(key+'\\'+data[key]);
       }
     }
-    alert(items.join('|'))
 
     setCookie('openlp_settings', items.join('|'), 3600);
   }
