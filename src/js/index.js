@@ -532,7 +532,7 @@ class Main {
     }
   }
 
-  async doRequstPoll() {
+  async doRequestPoll() {
     return await this.doRequest({
       dataType: 'json',
       contentType: 'application/json',
