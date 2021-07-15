@@ -8,7 +8,7 @@ const PreloadWebpackPlugin = require('preload-webpack-plugin');
 const CssUrlRelativePlugin = require('css-url-relative-plugin');
 const glob = require('glob');
 
-const proxyUrl = process.env.OPENLP_PROXY_URL ?? 'http://localhost:4316'; 
+const proxyUrl = process.env.OPENLP_PROXY_URL || 'http://localhost:4316'; 
 
 const IS_DEV = process.env.NODE_ENV === 'dev';
 
@@ -17,7 +17,7 @@ const config = {
   devtool: IS_DEV ? 'eval' : 'source-map',
   entry: './src/js/index.js',
   output: {
-    filename: 'js/[name].[hash].js',
+    filename: './[name].[hash].js',
     path: path.resolve(__dirname, 'dist'),
   },
   module: {
@@ -80,7 +80,7 @@ const config = {
             loader: 'file-loader',
             options: {
               name: '[name].[ext]',
-              outputPath: 'fonts/'
+              outputPath: './'
             }
           }
         ]
@@ -97,12 +97,12 @@ const config = {
     new CopyWebpackPlugin([
       {
         from: './src/public',
-        to: 'public',
+        to: './',
       },
     ]),
     new MiniCssExtractPlugin({
-      filename: IS_DEV ? 'css/[name].css' : 'css/[name].[contenthash].css',
-      chunkFilename: 'css/[id].css',
+      filename: IS_DEV ? '[name].css' : '[name].[contenthash].css',
+      chunkFilename: '[id].css',
     }),
     new webpack.HashedModuleIdsPlugin(),
     new PreloadWebpackPlugin({

@@ -80,6 +80,7 @@ class Main {
       slideQuirkTimeout: 500,
       shownErrorOnConsole: false,
       firstPoll: true,
+      version: 2,
     };
 
     this.initSettings({
@@ -143,8 +144,11 @@ class Main {
   async poll() {
     // only query time every 3 poll cycles
     if (this.state.showClock) {
-      if (++this.state.clockTick == 3) {
+      if (++this.state.clockTick == 0) {
         this.clockTick();
+      }
+
+      if (this.state.clockTick == 3) {
         this.state.clockTick = 0;
       }
     }
@@ -163,6 +167,7 @@ class Main {
         this.state.slide = polled.slide;
         this.state.item = polled.item;
         this.state.twelve = polled.twelve;
+        this.state.version = polled.version || 2;
 
         if (serviceChanged || slideChanged || itemChanged) {
           this.queryMainImage(cachedItem)
@@ -428,8 +433,83 @@ class Main {
   }
 
   async loadControllerItems() {
-    const items = await this.listControllerItems();
+    if (this.state.version == 3) {
+      const items = await this.listControllerItems_v3();
+      await this.loadControllerItems_v3(items)
+    } else {
+      const items = await this.listControllerItems();
+      await this.loadControllerItems_v2(items)
+    }
 
+  }
+
+  async loadControllerItems_v3(items) {
+    this.controllerItemsByIdItemsById = {};
+    this.controllerList.empty();
+
+    let focused = null;
+    let i = 0;
+
+    for (let item of items.slides) {
+      item = {...item, order: i};
+      
+      const mainText =
+        item.html
+        ?? item.text;
+
+      const withImg = !!item.img;
+      const withIcon = true;
+      const iconMarkup = withIcon
+        ? `
+          <span class="icon">
+            ${item.tag}
+          </span>`
+        : '';
+
+      const imgMarkup = withImg
+        ? `<img class="thumbnail" src="${item.img}">`
+        : '';
+
+      const notesMarkup = item.slide_notes ?
+        `<br><small class="notes">${item.slide_notes.replace(/\n/ig, '<br>')}</small>`
+        : '';
+
+      const markup = `
+        <a href="#" class="list-item${withIcon?' with-icon':''}${item.selected?' active': ''}" data-id="${item.order}">
+          ${iconMarkup}
+          <span class="text">
+            ${imgMarkup}
+            <span class="title">${mainText}</span>
+            ${notesMarkup}
+          </span>
+        </a>`;
+      const el = $(markup);
+
+      this.controllerList.append(el);
+      item.el = el;
+      this.controllerItemsById[i] = item;
+
+      el.on('click', async (e) => {
+        e.preventDefault();
+
+        this.state.lastClickedControllerItem = item.order;
+        this.markControllerItemActive(item);
+        await this.sendSelectControllerItem(item);
+      });
+
+      if (item.selected) {
+        focused = item;
+      }
+
+      ++i;
+    }
+
+    if (focused && (focused.order != this.state.lastClickedControllerItem)) {
+      this.focusControllerItem(focused);
+    }
+  }
+
+  async loadControllerItems_v2(items) {
     this.controllerItemsByIdItemsById = {};
     this.controllerList.empty();
 
@@ -533,22 +613,25 @@ class Main {
   }
 
   async doRequestPoll() {
-    return await this.doRequest({
+    const data = await this.doRequest({
       dataType: 'json',
       contentType: 'application/json',
       url: this.apiUrl + '/api/poll'
-    })?.results;
+    })
+    
+    return data?.results;
   }
 
   async doRequest(data) {
-    try {
-      const result = await $.ajax(data);
-      return result;
-    } catch (e) {
-      this.state.requestError = true;
-      this.showError(e);
-      throw e;
-    }
+    return new Promise ((resolve, reject) => {
+      try {
+        $.ajax(data).then(resolve, reject);
+      } catch (e) {
+        this.state.requestError = true;
+        this.showError(e);
+        reject(e);
+      }
+    });
   }
 
   showError(error) { // eslint-disable-line no-unused-vars
@@ -569,13 +652,22 @@ class Main {
       });
   }
 
+  async listControllerItems_v3() {
+    const url = this.apiUrl + '/api/v2/controller/live-items';
+    return this.doRequest({
+        contentType: 'application/json',
+        dataType: 'json',
+        url
+    });
+  }
+
   async listControllerItems() {
-      const url = this.apiUrl + '/api/controller/live/text';
-      return this.doRequest({
-          contentType: 'application/json',
-          dataType: 'json',
-          url
-      });
+    const url = this.apiUrl + '/api/controller/live/text';
+    return this.doRequest({
+        contentType: 'application/json',
+        dataType: 'json',
+        url
+    });
   }
   
   async sendSelectServiceItem(item) {
